@@ -156,30 +156,33 @@ def _safe_int(x):
 # -------------------- VERTEX AI CALL --------------------
 def _vertex_extract_fields(raw_text: str) -> dict:
     """
-    Ask Gemini to return JSON with exactly: price, year, make, model, mileage.
+    Ask Gemini to return JSON with exactly: price, year, make, model, transmission, mileage, fuel.
     """
     model = _get_vertex_model()
 
     # Strict JSON schema - FIX: Removed "additionalProperties": False
     schema = {
-        "type": "object",
-        "properties": {
-            "price": {"type": "integer", "nullable": True},
-            "year": {"type": "integer", "nullable": True},
-            "make": {"type": "string", "nullable": True},
-            "model": {"type": "string", "nullable": True},
-            "mileage": {"type": "integer", "nullable": True},
-        },
-        "required": ["price", "year", "make", "model", "mileage"]
-    }
-
+    "type": "object",
+    "properties": {
+        "price": {"type": "integer", "nullable": True},
+        "year": {"type": "integer", "nullable": True},
+        "make": {"type": "string", "nullable": True},
+        "model": {"type": "string", "nullable": True},
+        "transmission": {"type": "string", "nullable": True},
+        "mileage": {"type": "integer", "nullable": True},
+        "fuel": {"type": "string", "nullable": True},  
+    },
+    "required": ["price", "year", "make", "model", "mileage"]
+}
     # System instruction (will be prepended to the prompt)
     sys_instr = (
         "Extract ONLY the following fields from the input text. "
         "Return a strict JSON object that conforms to the provided schema. "
         "If a value is not present, use null. "
         "Rules: integers for price/year/mileage; price in USD; mileage in miles; "
-        "do not infer values not explicitly present; do not add extra keys."
+        "do not infer values not explicitly present; do not add extra keys. "
+        "the transmission can be manual or automatic, or if not listed, write null. "
+        "the fuel can be gas, diesel, or electric, or if not listed, write null. "
     )
 
     # FIX: Combine instruction and text into one prompt string (SDK compatibility)
@@ -230,6 +233,8 @@ def _vertex_extract_fields(raw_text: str) -> dict:
 
     parsed["make"] = _norm_str(parsed.get("make"))
     parsed["model"] = _norm_str(parsed.get("model"))
+    parsed["transmission"] = _norm_str(parsed.get("transmission"))
+    parsed["fuel"] = _norm_str(parsed.get("fuel"))
 
     return parsed
 
@@ -317,7 +322,9 @@ def llm_extract_http(request: Request):
                 "year": parsed.get("year"),
                 "make": parsed.get("make"),
                 "model": parsed.get("model"),
+                "transmission": parsed.get("transmission"),
                 "mileage": parsed.get("mileage"),
+                "fuel": parsed.get("fuel"),
                 "llm_provider": "vertex",
                 "llm_model": LLM_MODEL,
                 "llm_ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
